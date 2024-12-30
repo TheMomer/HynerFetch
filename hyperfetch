@@ -1,0 +1,168 @@
+#!/bin/python3
+
+import os
+import platform
+import psutil
+import configparser
+import socket
+import requests
+from colorama import Fore, Style, init
+import importlib.util
+
+# Инициализация colorama
+init()
+
+# Определение пути к конфигурационным файлам
+if platform.system() == 'Windows':
+    CONFIG_DIR = os.path.expanduser('%USERPROFILE%\\.hyperfetch')
+else:
+    CONFIG_DIR = os.path.expanduser('~/.hyperfetch')
+
+CONFIG_FILE = os.path.join(CONFIG_DIR, 'config.conf')
+LOGOS_DIR = os.path.join(CONFIG_DIR, 'logos')
+MODULES_DIR = os.path.join(CONFIG_DIR, 'modules')
+
+def get_os_info():
+    system = platform.system()
+    if system == 'Linux':
+        try:
+            with open('/etc/os-release') as f:
+                for line in f:
+                    if line.startswith('PRETTY_NAME'):
+                        return line.strip().split('=')[1].strip('"')
+        except FileNotFoundError:
+            pass
+    return system
+
+def get_kernel_version():
+    return platform.uname().release
+
+def get_user_info():
+    try:
+        return os.getlogin(), platform.node()
+    except OSError:
+        import pwd
+        return pwd.getpwuid(os.getuid())[0], platform.node()
+
+def get_memory_info():
+    mem = psutil.virtual_memory()
+    total = mem.total / (1024 ** 3)  # Convert bytes to GB
+    available = mem.available / (1024 ** 3)
+    return total, available
+
+def get_ip_addresses():
+    hostname = socket.gethostname()
+    local_ip = socket.gethostbyname(hostname)
+    public_ip = None
+    try:
+        public_ip = requests.get('https://api.ipify.org').text
+    except requests.RequestException:
+        pass
+    return local_ip, public_ip
+
+def get_unix_info():
+    init_system = None
+    de = os.environ.get('XDG_CURRENT_DESKTOP', None)
+    terminal = os.environ.get('TERM_PROGRAM', os.environ.get('TERM', None))
+    
+    if os.path.exists('/run/systemd/system'):
+        init_system = 'systemd'
+    elif os.path.exists('/sbin/init'):
+        init_system = 'SysV'
+    
+    return init_system, de, terminal
+
+def get_cpu_info():
+    cpu_info = psutil.cpu_info().brand_raw if hasattr(psutil, 'cpu_info') else platform.processor()
+    if not cpu_info:
+        cpu_info = "Unknown Processor"
+    return cpu_info
+
+def load_config():
+    config = configparser.ConfigParser()
+    config.read(CONFIG_FILE)
+    return config
+
+def get_logo(config):
+    # Получение логотипа из конфигурационного файла
+    logo_file = config.get('HyperFetch', 'logo', fallback=None)
+    if logo_file:
+        logo_path = os.path.join(LOGOS_DIR, logo_file)
+    else:
+        os_name = platform.system().lower()
+        logo_path = os.path.join(LOGOS_DIR, f"{os_name}.txt")
+    
+    if not os.path.exists(logo_path):
+        logo_path = os.path.join(LOGOS_DIR, 'unknown.txt')
+    
+    with open(logo_path, 'r') as file:
+        logo = file.read()
+    
+    return logo
+
+def load_modules():
+    modules = []
+    if os.path.exists(MODULES_DIR):
+        for filename in os.listdir(MODULES_DIR):
+            if filename.endswith('.py'):
+                module_name = filename[:-3]
+                module_path = os.path.join(MODULES_DIR, filename)
+                spec = importlib.util.spec_from_file_location(module_name, module_path)
+                module = importlib.util.module_from_spec(spec)
+                try:
+                    spec.loader.exec_module(module)
+                    modules.append(module)
+                except Exception as e:
+                    print(f"Error loading module {module_name}: {e}")
+    return modules
+
+def print_hyperfetch_info():
+    config = load_config()
+    os_name = get_os_info()
+    kernel_version = get_kernel_version()
+    user_name, hostname = get_user_info()
+    total_memory, available_memory = get_memory_info()
+    local_ip, public_ip = get_ip_addresses()
+    cpu_info = get_cpu_info()
+
+    show_memory = config.getboolean('HyperFetch', 'show_memory', fallback=True)
+    show_kernel = config.getboolean('HyperFetch', 'show_kernel', fallback=True)
+    show_ip = config.getboolean('HyperFetch', 'show_ip', fallback=True)
+    show_unix_info = config.getboolean('HyperFetch', 'show_unix_info', fallback=True)
+    show_cpu = config.getboolean('HyperFetch', 'show_cpu', fallback=True)
+    
+    logo = get_logo(config)
+    modules = load_modules()
+    
+    print(Fore.CYAN + logo + Style.RESET_ALL)
+    print(f"{Fore.GREEN}OS:{Style.RESET_ALL} {os_name}")
+    if show_kernel and (platform.system().lower() in ['linux', 'darwin', 'freebsd']):
+        print(f"{Fore.GREEN}Kernel:{Style.RESET_ALL} {kernel_version}")
+    print(f"{Fore.GREEN}User:{Style.RESET_ALL} {user_name}@{hostname}")
+    if show_memory:
+        print(f"{Fore.GREEN}Memory:{Style.RESET_ALL} {available_memory:.2f}GB / {total_memory:.2f}GB")
+    if show_ip:
+        print(f"{Fore.GREEN}Local IP:{Style.RESET_ALL} {local_ip}")
+        if public_ip:
+            print(f"{Fore.GREEN}Public IP:{Style.RESET_ALL} {public_ip}")
+    if show_unix_info and (platform.system().lower() in ['linux', 'darwin', 'freebsd']):
+        init_system, de, terminal = get_unix_info()
+        if init_system:
+            print(f"{Fore.GREEN}Init System:{Style.RESET_ALL} {init_system}")
+        if de:
+            print(f"{Fore.GREEN}DE:{Style.RESET_ALL} {de}")
+        if terminal:
+            print(f"{Fore.GREEN}Terminal:{Style.RESET_ALL} {terminal}")
+    if show_cpu:
+        print(f"{Fore.GREEN}CPU:{Style.RESET_ALL} {cpu_info}")
+
+    # Выполнение модулей
+    for module in modules:
+        if hasattr(module, 'run'):
+            try:
+                module.run()
+            except Exception as e:
+                print(f"Error running module {module.__name__}: {e}")
+
+if __name__ == "__main__":
+    print_hyperfetch_info()
