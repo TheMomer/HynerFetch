@@ -1,8 +1,6 @@
-# HyperFetch
+# HynerFetch 
 
-A lightweight, customizable system information fetcher written in Python.
-
-![Screenshot](screenshot.png)
+A lightweight, customizable fork for collecting system information written in Python.
 
 ## Features
 
@@ -27,12 +25,6 @@ A lightweight, customizable system information fetcher written in Python.
 
 ### Installing
 
-1. Clone the repository:
-```bash
-git clone https://github.com/yourusername/hyperfetch.git
-cd hyperfetch
-```
-
 2. Run the installer with administrative privileges:
 
 For Linux/macOS:
@@ -48,12 +40,12 @@ python install.py
 ## Configuration
 
 The configuration files are located in:
-- Linux/macOS: `~/.hyperfetch/`
+- Linux/macOS: `~/.hynerfetch/`
 - Windows: `%USERPROFILE%\.hyperfetch\`
 
 ### Directory Structure
 ```
-.hyperfetch/
+.hynerfetch/
 ├── logos/          # ASCII art logos
 │   ├── arch.txt
 │   ├── windows.txt
@@ -63,20 +55,9 @@ The configuration files are located in:
 └── config.conf     # Main configuration file
 ```
 
-### Configuration File
-```ini
-[HyperFetch]
-logo = 
-show_memory = true
-show_kernel = true
-show_ip = true
-show_unix_info = true
-show_cpu = true
-```
-
 ## Creating Custom Modules
 
-1. Create a new Python file in the `~/.hyperfetch/modules/` directory
+1. Create a new Python file in the `~/.hynerfetch/modules/` directory
 2. Include the required function `run()` in your module
 3. Use the colorama formatting for consistent output
 
@@ -92,23 +73,15 @@ def run():
 
 For Linux/macOS:
 ```bash
-sudo rm /usr/bin/hyperfetch
-rm -rf ~/.hyperfetch
+sudo rm /usr/bin/hynerfetch
+rm -rf ~/.hynerfetch
 ```
 
 For Windows (Run Command Prompt as Administrator):
 ```cmd
-del %WINDIR%\System32\hyperfetch.exe
-rmdir /s /q %USERPROFILE%\.hyperfetch
+del %WINDIR%\System32\hynerfetch.exe
+rmdir /s /q %USERPROFILE%\.hynerfetch
 ```
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a new Pull Request
 
 ## License
 
